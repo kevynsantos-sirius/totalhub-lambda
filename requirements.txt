@@ -1,0 +1,2 @@
+# A runtime da AWS Lambda ja inclui boto3.
+# Mantenha este arquivo para dependencias futuras empacotadas no deploy.

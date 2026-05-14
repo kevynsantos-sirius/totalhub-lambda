@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: TotalHub demo request API Gateway + Lambda.
+
+Parameters:
+  AllowedOrigin:
+    Type: String
+    Default: "*"
+    Description: Origem liberada no CORS. Use o dominio do site em producao.
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 10
+    MemorySize: 128
+    Architectures:
+      - x86_64
+
+Resources:
+  DemoRequestsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  DemoRequestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: app.handler.lambda_handler
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          DEMO_REQUESTS_TABLE: !Ref DemoRequestsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DemoRequestsTable
+      Events:
+        DemoRequestApi:
+          Type: HttpApi
+          Properties:
+            Path: /solicitar-demonstracao
+            Method: POST
+        DemoRequestOptions:
+          Type: HttpApi
+          Properties:
+            Path: /solicitar-demonstracao
+            Method: OPTIONS
+
+Outputs:
+  DemoRequestApiUrl:
+    Description: URL para configurar em VITE_DEMO_REQUEST_API_URL.
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/solicitar-demonstracao"

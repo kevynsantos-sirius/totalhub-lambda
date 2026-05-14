@@ -1,0 +1,16 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /solicitar-demonstracao",
+  "rawPath": "/solicitar-demonstracao",
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/solicitar-demonstracao"
+    }
+  },
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": "{\"name\":\"Cliente TotalHub\",\"phone\":\"(11) 99999-0000\",\"email\":\"cliente@empresa.com\",\"message\":\"Quero conhecer a plataforma.\",\"source\":\"totalhub-site\",\"submittedAt\":\"2026-05-14T15:00:00.000Z\"}",
+  "isBase64Encoded": false
+}
