@@ -7,6 +7,35 @@ Parameters:
     Type: String
     Default: "*"
     Description: Origem liberada no CORS. Use o dominio do site em producao.
+  SmtpHost:
+    Type: String
+    Description: Servidor SMTP.
+  SmtpPort:
+    Type: String
+    Default: "587"
+    Description: Porta SMTP.
+  SmtpUsername:
+    Type: String
+    Default: ""
+    Description: Usuario SMTP. Deixe vazio se o servidor nao exigir login.
+  SmtpPassword:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Senha SMTP. Deixe vazio se o servidor nao exigir login.
+  SmtpFromEmail:
+    Type: String
+    Description: Remetente usado no envio do e-mail.
+  SmtpToEmails:
+    Type: String
+    Description: Destinatarios separados por ponto e virgula.
+  SmtpUseTls:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Define se a conexao SMTP usa STARTTLS.
 
 Globals:
   Function:
@@ -17,17 +46,6 @@ Globals:
       - x86_64
 
 Resources:
-  DemoRequestsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: id
-          AttributeType: S
-      KeySchema:
-        - AttributeName: id
-          KeyType: HASH
-
   DemoRequestFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -36,10 +54,13 @@ Resources:
       Environment:
         Variables:
           ALLOWED_ORIGIN: !Ref AllowedOrigin
-          DEMO_REQUESTS_TABLE: !Ref DemoRequestsTable
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref DemoRequestsTable
+          SMTP_HOST: !Ref SmtpHost
+          SMTP_PORT: !Ref SmtpPort
+          SMTP_USERNAME: !Ref SmtpUsername
+          SMTP_PASSWORD: !Ref SmtpPassword
+          SMTP_FROM_EMAIL: !Ref SmtpFromEmail
+          SMTP_TO_EMAILS: !Ref SmtpToEmails
+          SMTP_USE_TLS: !Ref SmtpUseTls
       Events:
         DemoRequestApi:
           Type: HttpApi

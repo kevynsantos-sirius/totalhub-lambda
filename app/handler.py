@@ -2,8 +2,10 @@ import base64
 import json
 import os
 import re
+import smtplib
 import uuid
 from datetime import datetime, timezone
+from email.message import EmailMessage
 from typing import Any
 
 
@@ -30,7 +32,12 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         return _response(400, {"message": "Dados invalidos.", "errors": errors})
 
     demo_request = _build_demo_request(payload)
-    _persist_demo_request(demo_request)
+
+    try:
+        _send_demo_request_email(demo_request)
+    except RuntimeError as exc:
+        print(json.dumps({"error": str(exc), "demoRequest": demo_request}, ensure_ascii=False))
+        return _response(500, {"message": "Nao foi possivel enviar a solicitacao."})
 
     return _response(
         200,
@@ -91,18 +98,88 @@ def _build_demo_request(payload: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def _persist_demo_request(demo_request: dict[str, str]) -> None:
-    table_name = os.environ.get("DEMO_REQUESTS_TABLE")
+def _send_demo_request_email(demo_request: dict[str, str]) -> None:
+    config = _get_smtp_config()
+    message = _build_email_message(demo_request, config)
 
-    if not table_name:
-        print(json.dumps({"demoRequest": demo_request}, ensure_ascii=False))
-        return
+    try:
+        with smtplib.SMTP(config["host"], int(config["port"]), timeout=10) as smtp:
+            if config["use_tls"]:
+                smtp.starttls()
 
-    import boto3
+            if config["username"] and config["password"]:
+                smtp.login(config["username"], config["password"])
 
-    dynamodb = boto3.resource("dynamodb")
-    table = dynamodb.Table(table_name)
-    table.put_item(Item=demo_request)
+            smtp.send_message(message)
+    except Exception as exc:
+        raise RuntimeError("Falha ao enviar e-mail SMTP.") from exc
+
+
+def _get_smtp_config() -> dict[str, Any]:
+    recipients = _split_recipients(os.environ.get("SMTP_TO_EMAILS", ""))
+
+    config = {
+        "host": os.environ.get("SMTP_HOST", "").strip(),
+        "port": os.environ.get("SMTP_PORT", "587").strip(),
+        "username": os.environ.get("SMTP_USERNAME", "").strip(),
+        "password": os.environ.get("SMTP_PASSWORD", ""),
+        "from_email": os.environ.get("SMTP_FROM_EMAIL", "").strip(),
+        "to_emails": recipients,
+        "use_tls": os.environ.get("SMTP_USE_TLS", "true").strip().lower()
+        in ("1", "true", "yes", "sim"),
+    }
+
+    missing_fields = [
+        key
+        for key in ("host", "port", "from_email")
+        if not config[key]
+    ]
+
+    if not recipients:
+        missing_fields.append("to_emails")
+
+    if missing_fields:
+        raise RuntimeError(f"Configuracao SMTP incompleta: {', '.join(missing_fields)}.")
+
+    if not str(config["port"]).isdigit():
+        raise RuntimeError("Configuracao SMTP invalida: port.")
+
+    return config
+
+
+def _split_recipients(value: str) -> list[str]:
+    return [email.strip() for email in value.split(";") if email.strip()]
+
+
+def _build_email_message(
+    demo_request: dict[str, str],
+    config: dict[str, Any],
+) -> EmailMessage:
+    message = EmailMessage()
+    message["Subject"] = f"Nova solicitacao de demonstracao - {demo_request['name']}"
+    message["From"] = config["from_email"]
+    message["To"] = ", ".join(config["to_emails"])
+    message["Reply-To"] = demo_request["email"]
+    message.set_content(
+        "\n".join(
+            [
+                "Nova solicitacao de demonstracao recebida pelo site TotalHub.",
+                "",
+                f"ID: {demo_request['id']}",
+                f"Nome: {demo_request['name']}",
+                f"Telefone: {demo_request['phone']}",
+                f"E-mail: {demo_request['email']}",
+                f"Origem: {demo_request['source']}",
+                f"Enviado em: {demo_request['submittedAt']}",
+                f"Recebido em: {demo_request['receivedAt']}",
+                "",
+                "Mensagem:",
+                demo_request["message"],
+            ]
+        )
+    )
+
+    return message
 
 
 def _get_http_method(event: dict[str, Any]) -> str:

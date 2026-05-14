@@ -3,7 +3,7 @@
 Arquitetura criada pelo `template.yaml`:
 
 ```text
-React/Vite -> API Gateway HTTP API -> Lambda Python -> DynamoDB
+React/Vite -> API Gateway HTTP API -> Lambda Python -> SMTP
 ```
 
 ## Pre-requisitos
@@ -29,13 +29,29 @@ Na pasta `C:\workspace\totalhub-lambda`:
 
 ```powershell
 sam build
-sam deploy --guided --parameter-overrides AllowedOrigin=http://localhost:5173
+sam deploy --guided --parameter-overrides `
+  AllowedOrigin=http://localhost:5173 `
+  SmtpHost=smtp.seu-provedor.com `
+  SmtpPort=587 `
+  SmtpUsername=usuario `
+  SmtpPassword=senha `
+  SmtpFromEmail=noreply@seu-dominio.com.br `
+  SmtpToEmails="comercial@seu-dominio.com.br;vendas@seu-dominio.com.br" `
+  SmtpUseTls=true
 ```
 
 Para producao, troque o origin:
 
 ```powershell
-sam deploy --guided --parameter-overrides AllowedOrigin=https://seu-dominio.com.br
+sam deploy --guided --parameter-overrides `
+  AllowedOrigin=https://seu-dominio.com.br `
+  SmtpHost=smtp.seu-provedor.com `
+  SmtpPort=587 `
+  SmtpUsername=usuario `
+  SmtpPassword=senha `
+  SmtpFromEmail=noreply@seu-dominio.com.br `
+  SmtpToEmails="comercial@seu-dominio.com.br;vendas@seu-dominio.com.br" `
+  SmtpUseTls=true
 ```
 
 No fim do deploy, o CloudFormation mostra o output `DemoRequestApiUrl`.
@@ -68,8 +84,8 @@ Resposta esperada:
 }
 ```
 
-## Onde ver os dados
+## Onde ver os envios
 
-As solicitacoes sao salvas na tabela DynamoDB criada pelo stack. A chave primaria e `id`.
+As solicitacoes sao enviadas por SMTP para os enderecos definidos em `SMTP_TO_EMAILS`, separados por ponto e virgula.
 
-Tambem da para acompanhar a execucao pelo CloudWatch Logs da funcao `DemoRequestFunction`.
+Da para acompanhar erros de envio pelo CloudWatch Logs da funcao `DemoRequestFunction`.

@@ -1,6 +1,6 @@
 # TotalHub Lambda
 
-Aplicacao Python para receber o formulario de solicitacao de demonstracao do TotalHub via API Gateway + Lambda.
+Aplicacao Python para receber o formulario de solicitacao de demonstracao do TotalHub via API Gateway + Lambda e enviar a solicitacao por e-mail via SMTP.
 
 ## Contrato da API
 
@@ -59,7 +59,15 @@ Primeiro configure as credenciais AWS no ambiente local. Depois rode:
 
 ```powershell
 sam build
-sam deploy --guided --parameter-overrides AllowedOrigin=https://seu-dominio.com.br
+sam deploy --guided --parameter-overrides `
+  AllowedOrigin=https://seu-dominio.com.br `
+  SmtpHost=smtp.seu-provedor.com `
+  SmtpPort=587 `
+  SmtpUsername=usuario `
+  SmtpPassword=senha `
+  SmtpFromEmail=noreply@seu-dominio.com.br `
+  SmtpToEmails="comercial@seu-dominio.com.br;vendas@seu-dominio.com.br" `
+  SmtpUseTls=true
 ```
 
 Ao final, copie o output `DemoRequestApiUrl` para a variavel `VITE_DEMO_REQUEST_API_URL` do front.
@@ -70,4 +78,16 @@ Veja tambem [docs/aws-deploy.md](docs/aws-deploy.md) para o passo a passo de pub
 
 `ALLOWED_ORIGIN`: origem aceita no CORS. Para desenvolvimento, use `http://localhost:5173`. Em producao, use o dominio real.
 
-`DEMO_REQUESTS_TABLE`: nome da tabela DynamoDB. O `template.yaml` cria e injeta essa variavel automaticamente. Sem ela, a Lambda apenas registra a solicitacao no log.
+`SMTP_HOST`: servidor SMTP.
+
+`SMTP_PORT`: porta SMTP. Normalmente `587`.
+
+`SMTP_USERNAME`: usuario SMTP. Pode ficar vazio se o servidor nao exigir login.
+
+`SMTP_PASSWORD`: senha SMTP. Pode ficar vazio se o servidor nao exigir login.
+
+`SMTP_FROM_EMAIL`: remetente do e-mail.
+
+`SMTP_TO_EMAILS`: destinatarios separados por ponto e virgula. Exemplo: `comercial@empresa.com;vendas@empresa.com`.
+
+`SMTP_USE_TLS`: use `true` para STARTTLS, ou `false` quando o servidor SMTP nao usar TLS.

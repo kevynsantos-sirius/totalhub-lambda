@@ -2,6 +2,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -11,18 +12,53 @@ from app.handler import lambda_handler
 
 
 def setup_function():
-    os.environ.pop("DEMO_REQUESTS_TABLE", None)
     os.environ["ALLOWED_ORIGIN"] = "http://localhost:5173"
+    os.environ["SMTP_HOST"] = "smtp.example.com"
+    os.environ["SMTP_PORT"] = "587"
+    os.environ["SMTP_USERNAME"] = "usuario"
+    os.environ["SMTP_PASSWORD"] = "senha"
+    os.environ["SMTP_FROM_EMAIL"] = "noreply@totalhub.com.br"
+    os.environ["SMTP_TO_EMAILS"] = "comercial@totalhub.com.br; vendas@totalhub.com.br"
+    os.environ["SMTP_USE_TLS"] = "true"
 
 
 def test_accepts_valid_demo_request():
-    response = lambda_handler(_event(body=_valid_payload()), None)
+    with patch("app.handler.smtplib.SMTP") as smtp_class:
+        response = lambda_handler(_event(body=_valid_payload()), None)
+
     body = json.loads(response["body"])
 
     assert response["statusCode"] == 200
     assert body["message"] == "Solicitacao recebida com sucesso."
     assert body["requestId"]
     assert response["headers"]["Access-Control-Allow-Origin"] == "http://localhost:5173"
+    smtp = smtp_class.return_value.__enter__.return_value
+    smtp.starttls.assert_called_once_with()
+    smtp.login.assert_called_once_with("usuario", "senha")
+    smtp.send_message.assert_called_once()
+
+
+def test_sends_email_to_semicolon_separated_recipients():
+    with patch("app.handler.smtplib.SMTP") as smtp_class:
+        response = lambda_handler(_event(body=_valid_payload()), None)
+
+    smtp = smtp_class.return_value.__enter__.return_value
+    message = smtp.send_message.call_args.args[0]
+
+    assert response["statusCode"] == 200
+    assert message["To"] == "comercial@totalhub.com.br, vendas@totalhub.com.br"
+    assert message["Reply-To"] == "cliente@empresa.com"
+    assert "Cliente TotalHub" in message.get_content()
+
+
+def test_rejects_when_smtp_recipients_are_missing():
+    os.environ["SMTP_TO_EMAILS"] = ""
+
+    response = lambda_handler(_event(body=_valid_payload()), None)
+    body = json.loads(response["body"])
+
+    assert response["statusCode"] == 500
+    assert body["message"] == "Nao foi possivel enviar a solicitacao."
 
 
 def test_rejects_missing_required_fields():
