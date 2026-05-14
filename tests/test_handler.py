@@ -8,7 +8,7 @@ from unittest.mock import patch
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
 
-from app.handler import lambda_handler
+from app.lambda_function import lambda_handler
 
 
 def setup_function():
